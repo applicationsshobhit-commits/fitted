@@ -21,6 +21,16 @@ Use a live camera or upload a phone video.
 
 Everything runs in the browser. Video never leaves the machine.
 
+## From profile to printable design
+
+    node design/export.js ~/Downloads/hand-profile-YYYY-MM-DD.json
+    # → design/out/: built-up-grip.stl, universal-cuff.stl, palm-bulb.stl, params.json
+
+Then open http://localhost:7780/design/preview.html to see renders of exactly
+the geometry in those STL files. STLs are in millimetres and open in any slicer.
+`params.json` records every size and the reason behind it. Sizing rules in
+`design/designs.js` are drafts until an occupational therapist sets them.
+
 ## How measuring works
 
 MediaPipe gives 21 hand points in two forms: where they are in the image, and
@@ -60,6 +70,9 @@ with its own names. Nothing downstream changes.
 | `capture/app.js` | Camera, tracking loop, calibration, recording, results |
 | `capture/index.html` | The capture page |
 | `server.js` | Local server for the page, MediaPipe, and the model. No CDN. |
+| `design/designs.js` | Profile → design sizes → 3D geometry, in millimetres |
+| `design/export.js` | Writes STL files and params.json |
+| `design/preview.html` | Renders the same geometry the STLs contain |
 | `capture/testdata/` | MediaPipe's public test photos, for checks without a camera |
 
 ## Known limits

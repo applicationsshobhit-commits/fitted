@@ -2,7 +2,7 @@
 // Serves the page, the MediaPipe bundle and its WASM from node_modules, and the
 // hand model from disk, so capture works offline once installed.
 import { createServer } from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, stat, writeFile, mkdir } from 'node:fs/promises';
 import { join, normalize, extname, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,7 +12,10 @@ const PORT = Number(process.env.FITTED_PORT || 7780);
 const MOUNTS = [
   ['/capture/', join(ROOT, 'capture')],
   ['/vendor/tasks-vision/', join(ROOT, 'node_modules', '@mediapipe', 'tasks-vision')],
+  ['/design/', join(ROOT, 'design')],
+  ['/vendor/three/', join(ROOT, 'node_modules', 'three')],
 ];
+const RENDER_DIR = join(ROOT, 'design', 'out');
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -23,6 +26,8 @@ const TYPES = {
   '.wasm': 'application/wasm',
   '.task': 'application/octet-stream',
   '.map': 'application/json',
+  '.png': 'image/png',
+  '.stl': 'model/stl',
 };
 
 async function send(res, file) {
@@ -37,6 +42,18 @@ createServer(async (req, res) => {
   let path;
   try { path = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); }
   catch { res.writeHead(400); return res.end('bad path'); }
+
+  // The render page saves its PNGs here. Bare file names only, PNG only.
+  if (req.method === 'POST' && path.startsWith('/design/out/')) {
+    const name = path.slice('/design/out/'.length);
+    if (!/^[\w-]+\.png$/.test(name)) { res.writeHead(400); return res.end('png file name only'); }
+    const chunks = [];
+    for await (const c of req) chunks.push(c);
+    const b64 = Buffer.concat(chunks).toString().replace(/^data:image\/png;base64,/, '');
+    await mkdir(RENDER_DIR, { recursive: true });
+    await writeFile(join(RENDER_DIR, name), Buffer.from(b64, 'base64'));
+    res.writeHead(200); return res.end('saved');
+  }
 
   if (path === '/' || path === '/capture') {
     res.writeHead(302, { Location: '/capture/' });

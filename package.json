@@ -5,10 +5,11 @@
   "version": "0.1.0",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test capture/*.test.js",
+    "test": "node --test capture/*.test.js design/*.test.js",
     "setup": "mkdir -p capture/models && curl -sL -o capture/models/hand_landmarker.task https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "^1.1.0"
+    "@mediapipe/tasks-vision": "^1.1.0",
+    "three": "^0.186.1"
   }
 }
