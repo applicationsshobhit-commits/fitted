@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fitted Hand Capture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600..800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a capture bench. The camera stage dominates; a narrow panel walks through the steps and holds the numbers. */
+:root{
+  --paper:#eef2f1; --surface:#f9fbfa; --ink:#172124; --muted:#55666a; --line:#d2dcda;
+  --accent:#1d7a6f; --accent-soft:#d5ebe6; --warn:#a86512; --warn-soft:#f6e6cf; --err:#b23a48; --err-soft:#f6dadd;
+  --display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#101718; --surface:#172123; --ink:#e2ebe9; --muted:#93a6a8; --line:#29383a;
+    --accent:#5ec2b3; --accent-soft:#1b3835; --warn:#e3a95a; --warn-soft:#3a2c17; --err:#ef8a96; --err-soft:#3d1d22;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 var(--body);display:flex;flex-direction:column}
+
+header{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--surface)}
+.brand{font:750 17px/1 var(--display);letter-spacing:-.01em}
+.brand span{color:var(--muted);font-weight:600}
+#status{margin-left:auto;font:500 12px/1.3 var(--mono);padding:6px 10px;border-radius:5px;background:var(--paper);color:var(--muted);max-width:60ch}
+#status.ok{background:var(--accent-soft);color:var(--accent)}
+#status.warn{background:var(--warn-soft);color:var(--warn)}
+#status.err{background:var(--err-soft);color:var(--err)}
+
+main{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 380px;min-height:0}
+.bench{padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0;overflow:auto}
+.panel{border-left:1px solid var(--line);background:var(--surface);padding:20px;overflow:auto;display:flex;flex-direction:column;gap:22px}
+
+/* Empty state */
+.empty{flex:1;display:grid;place-items:center;border:1px dashed var(--line);border-radius:8px;padding:32px;text-align:center}
+.empty h1{font:750 26px/1.15 var(--display);margin:0 0 8px;text-wrap:balance}
+.empty p{margin:0 auto 20px;max-width:52ch;color:var(--muted)}
+.choices{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+
+button,.btn{
+  font:700 14px/1 var(--body);padding:11px 16px;border-radius:6px;cursor:pointer;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);display:inline-flex;align-items:center;gap:8px;
+}
+button:hover:not(:disabled),.btn:hover{border-color:var(--accent)}
+button:focus-visible,.btn:focus-within,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+button.rec{background:var(--err);border-color:var(--err);color:#fff}
+button:disabled{opacity:.45;cursor:default}
+.btn input{display:none}
+
+/* Stage: video and its overlay share one box sized to the video's aspect ratio */
+/* Width is the smaller of the column and what the height limit allows at this video's ratio, so the
+   box always has the video's exact shape: no letterboxing, and the overlay lines up pixel for pixel. */
+.stage{--ratio:1.7778;position:relative;aspect-ratio:var(--ratio);width:min(100%, calc((100vh - 210px) * var(--ratio)));background:#0b1112;border-radius:8px;overflow:hidden;margin-inline:auto}
+.stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%}
+.stage canvas{pointer-events:none}
+.stage canvas.picking{pointer-events:auto;cursor:crosshair}
+.recdot{position:absolute;top:12px;left:12px;font:500 12px/1 var(--mono);color:#fff;background:rgba(178,58,72,.9);padding:6px 9px;border-radius:4px}
+
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.controls label{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+select,input[type=number]{font:14px var(--body);padding:8px 10px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+input[type=number]{width:88px}
+.spacer{flex:1}
+
+/* Panel */
+h2{font:700 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.steps li{display:grid;grid-template-columns:24px 1fr;gap:10px;align-items:start}
+.steps .n{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:500 12px/1 var(--mono);border:1px solid var(--line);color:var(--muted)}
+.steps li.active .n{border-color:var(--accent);color:var(--accent)}
+.steps li.done .n{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.steps b{display:block;font-size:14px}
+.steps small{color:var(--muted);font-size:13px;line-height:1.45}
+
+dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px}
+dt{color:var(--muted);font-size:13px}
+dd{margin:0;text-align:right;font:500 14px var(--mono);font-variant-numeric:tabular-nums}
+
+.rec-card{border:1px solid var(--accent);border-radius:8px;padding:14px 16px;display:grid;gap:8px;background:var(--accent-soft)}
+.rec-card h3{margin:0;font:750 20px/1.2 var(--display)}
+.rec-card .param{font:500 15px var(--mono);color:var(--accent)}
+.rec-card ul{margin:0;padding-left:18px;font-size:13.5px}
+.draft{font:500 11px/1.3 var(--mono);color:var(--warn);background:var(--warn-soft);padding:5px 8px;border-radius:4px;justify-self:start}
+.notes{margin:0;padding-left:18px;color:var(--warn);font-size:13.5px}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+td{padding:6px 0;border-bottom:1px solid var(--line)}
+td:last-child{text-align:right;font:500 13.5px var(--mono);font-variant-numeric:tabular-nums}
+details summary{cursor:pointer;color:var(--muted);font-size:13px}
+pre{font:12px/1.5 var(--mono);background:var(--paper);padding:10px;border-radius:6px;overflow:auto;max-height:260px}
+
+@media (max-width:900px){
+  main{grid-template-columns:minmax(0,1fr)}
+  .panel{border-left:0;border-top:1px solid var(--line)}
+  .stage{width:min(100%, calc((100vh - 120px) * var(--ratio)))}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Fitted <span>· Hand capture</span></div>
+  <div id="status" role="status" aria-live="polite">Loading hand model…</div>
+</header>
+
+<main>
+  <section class="bench">
+    <div id="empty" class="empty">
+      <div>
+        <h1>Film a hand. Get its measurements.</h1>
+        <p>Use a live camera, or upload a phone video. Hold a bank card flat beside the hand so sizes come out in real millimetres.</p>
+        <div class="choices">
+          <button id="useCamera" class="primary" type="button" disabled>Use camera</button>
+          <label class="btn" id="pickVideoLabel">Upload a video<input id="videoFile" type="file" accept="video/*" disabled></label>
+        </div>
+      </div>
+    </div>
+
+    <div id="stage" class="stage" hidden>
+      <video id="video" playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <div id="recdot" class="recdot" hidden>REC · <span id="recFrames">0</span> frames</div>
+    </div>
+
+    <div id="controls" class="controls" hidden>
+      <label for="reference">Reference
+        <select id="reference"></select>
+      </label>
+      <label for="customMm" id="customWrap" hidden>Length (mm)
+        <input id="customMm" type="number" min="5" max="500" step="0.1" value="50">
+      </label>
+      <button id="calibrate" type="button">Calibrate</button>
+      <label for="side">Hand
+        <select id="side"><option value="right">Right</option><option value="left">Left</option></select>
+      </label>
+      <span class="spacer"></span>
+      <button id="changeSource" type="button">Change source</button>
+      <button id="record" class="primary" type="button">Record</button>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <section>
+      <h2>Steps</h2>
+      <ol class="steps">
+        <li id="step-source" class="active"><span class="n">1</span><div><b>Choose a source</b><small>Live camera, or a video filmed on a phone.</small></div></li>
+        <li id="step-calibrate"><span class="n">2</span><div><b>Calibrate</b><small>Hold a bank card flat beside the hand, the same distance from the camera. Click Calibrate, then click both ends of the card's long edge.</small></div></li>
+        <li id="step-record"><span class="n">3</span><div><b>Record about 10 seconds</b><small>Palm facing the camera. Hand relaxed, then open as wide as it goes, then close or try to grip.</small></div></li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Live</h2>
+      <dl>
+        <dt>Hand</dt><dd id="liveHand">–</dd>
+        <dt>Thumb-to-index opening</dt><dd id="liveOpen">–</dd>
+        <dt>Knuckle span</dt><dd id="liveSpan">–</dd>
+        <dt>Index curl</dt><dd id="liveCurl">–</dd>
+        <dt>Scale</dt><dd id="liveScale">Estimated</dd>
+      </dl>
+    </section>
+
+    <section id="results" hidden>
+      <h2>Result</h2>
+      <div style="display:grid;gap:16px">
+        <div class="rec-card">
+          <span class="draft">Draft sizing rule. Not clinical guidance yet.</span>
+          <h3 id="recLabel"></h3>
+          <div class="param" id="recParam"></div>
+          <ul id="recReasons"></ul>
+        </div>
+        <ul class="notes" id="recNotes"></ul>
+        <div>
+          <h2>Measurements</h2>
+          <table><tbody id="measureRows"></tbody></table>
+        </div>
+        <div>
+          <h2>Range of motion</h2>
+          <table><tbody id="motionRows"></tbody></table>
+        </div>
+        <button id="download" type="button">Download profile (JSON)</button>
+        <details><summary>View profile</summary><pre id="profileJson"></pre></details>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
