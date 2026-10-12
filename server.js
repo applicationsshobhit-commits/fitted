@@ -38,7 +38,7 @@ async function send(res, file) {
   res.end(body);
 }
 
-createServer(async (req, res) => {
+async function handle(req, res) {
   let path;
   try { path = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); }
   catch { res.writeHead(400); return res.end('bad path'); }
@@ -68,4 +68,11 @@ createServer(async (req, res) => {
     catch { res.writeHead(404); return res.end('not found'); }
   }
   res.writeHead(404); res.end('not found');
-}).listen(PORT, '127.0.0.1', () => console.log(`fitted capture → http://localhost:${PORT}/capture/`));
+}
+
+// Browsers resolve "localhost" to IPv4 or IPv6 depending on the machine, so listen on
+// both loopback addresses. Neither is reachable from other computers.
+for (const host of ['127.0.0.1', '::1']) {
+  createServer(handle).listen(PORT, host).on('error', err => console.warn(`not listening on ${host}: ${err.message}`));
+}
+console.log(`fitted capture → http://localhost:${PORT}/capture/`);
