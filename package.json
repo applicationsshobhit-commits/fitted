@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test capture/*.test.js design/*.test.js",
-    "setup": "mkdir -p capture/models && curl -sL -o capture/models/hand_landmarker.task https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+    "setup": "mkdir -p capture/models && curl -sL -o capture/models/hand_landmarker.task https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task && curl -sL -o capture/models/pose_landmarker_full.task https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.1.0",

@@ -151,6 +151,23 @@ export function summarize(frames) {
 }
 
 const r1 = v => Math.round(v * 10) / 10;
+
+/**
+ * Calibrate with one length measured by hand: every size scales so that `key`
+ * matches `mm`. Angles don't change. Returns a new summary.
+ */
+export function scaleHandSummary(summary, key, mm) {
+  const now = key === 'handLength' ? summary.sizes.handLength : summary.sizes[key];
+  if (!(mm > 0) || !(now > 0)) return summary;
+  const f = mm / now;
+  const s = structuredClone(summary);
+  for (const k of ['knuckleSpan', 'palmLength', 'handLength']) s.sizes[k] *= f;
+  for (const n of Object.keys(s.sizes.fingerLength)) s.sizes.fingerLength[n] *= f;
+  s.motion.aperture = { min: s.motion.aperture.min * f, max: s.motion.aperture.max * f };
+  s.scaleMethod = 'measured';
+  s.scaleSpreadPct = null;
+  return s;
+}
 const mm = v => ({ value: r1(v), unit: 'mm' });
 const span = (r, u) => ({ min: r1(r.min), max: r1(r.max), unit: u });
 

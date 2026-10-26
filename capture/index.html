@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fitted Hand Capture</title>
+<title>Fitted Capture</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600..800&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
@@ -91,6 +91,25 @@ dd{margin:0;text-align:right;font:500 14px var(--mono);font-variant-numeric:tabu
 .rec-card .param{font:500 15px var(--mono);color:var(--accent)}
 .rec-card ul{margin:0;padding-left:18px;font-size:13.5px}
 .draft{font:500 11px/1.3 var(--mono);color:var(--warn);background:var(--warn-soft);padding:5px 8px;border-radius:4px;justify-self:start}
+#session{padding:10px 20px;background:var(--accent-soft);color:var(--accent);font-size:14px;border-bottom:1px solid var(--line)}
+#session.err{background:var(--err-soft);color:var(--err)}
+#sendWrap{display:grid;gap:6px}
+#sendMsg{font-size:13.5px}
+.known{display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.known label{font-size:13px;color:var(--muted);width:100%}
+.known input{font:16px var(--body);padding:8px 10px;border-radius:6px;border:1px solid var(--accent);background:var(--paper);color:var(--ink);width:110px}
+.steps .skip{display:block;margin-top:4px;font-size:12px}
+button.quiet{background:none;border-color:transparent;color:var(--muted);font-weight:400;text-decoration:underline;padding:6px 4px}
+.card-tools{display:inline-flex;gap:10px;align-items:center;flex-wrap:wrap}
+.part-pick{display:inline-flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:16px}
+#tapeSection{display:grid;gap:12px}
+.tape-intro{margin:0;font-size:13px;color:var(--muted)}
+.tape-unit{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.tape-fields{display:grid;gap:12px}
+.tape-field{display:grid;gap:3px;font-size:14px}
+.tape-field small{color:var(--muted);font-size:12.5px}
+.tape-field input,.tape-field textarea{font:14px var(--body);padding:8px 10px;border-radius:6px;border:1px solid var(--line);background:var(--paper);color:var(--ink);width:100%}
+.tape-custom{display:grid;grid-template-columns:minmax(0,1fr) 88px;gap:6px}
 .notes{margin:0;padding-left:18px;color:var(--warn);font-size:13.5px}
 
 table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -109,17 +128,19 @@ pre{font:12px/1.5 var(--mono);background:var(--paper);padding:10px;border-radius
 </head>
 <body>
 <header>
-  <div class="brand">Fitted <span>· Hand capture</span></div>
-  <div id="status" role="status" aria-live="polite">Loading hand model…</div>
+  <div class="brand">Fitted <span>· Capture</span></div>
+  <div id="status" role="status" aria-live="polite">Loading…</div>
 </header>
 
+<div id="session" hidden></div>
 <main>
   <section class="bench">
     <div id="empty" class="empty">
       <div>
-        <h1>Film a hand. Get its measurements.</h1>
-        <p>Use a live camera, or upload a phone video. Hold a bank card flat beside the hand so sizes come out in real millimetres.</p>
-        <div class="choices">
+        <label class="part-pick" id="partWrap">Body part <select id="partPick"></select></label>
+        <h1 id="emptyTitle">Film a hand. Get its measurements.</h1>
+        <p id="emptyText">Use a live camera, or upload a phone video. Hold a bank card flat beside the hand so sizes come out in real millimetres.</p>
+        <div class="choices" id="videoChoices">
           <button id="useCamera" class="primary" type="button" disabled>Use camera</button>
           <label class="btn" id="pickVideoLabel">Upload a video<input id="videoFile" type="file" accept="video/*" disabled></label>
         </div>
@@ -133,14 +154,17 @@ pre{font:12px/1.5 var(--mono);background:var(--paper);padding:10px;border-radius
     </div>
 
     <div id="controls" class="controls" hidden>
-      <label for="reference">Reference
-        <select id="reference"></select>
-      </label>
-      <label for="customMm" id="customWrap" hidden>Length (mm)
-        <input id="customMm" type="number" min="5" max="500" step="0.1" value="50">
-      </label>
-      <button id="calibrate" type="button">Calibrate</button>
-      <label for="side">Hand
+      <button id="cardToggle" type="button" class="quiet">Use a card instead</button>
+      <span id="cardTools" class="card-tools" hidden>
+        <label for="reference">Reference
+          <select id="reference"></select>
+        </label>
+        <label for="customMm" id="customWrap" hidden>Length (mm)
+          <input id="customMm" type="number" min="5" max="500" step="0.1" value="50">
+        </label>
+        <button id="calibrate" type="button">Calibrate</button>
+      </span>
+      <label for="side" id="sideWrap"><span id="sideLabel">Side</span>
         <select id="side"><option value="right">Right</option><option value="left">Left</option></select>
       </label>
       <span class="spacer"></span>
@@ -154,26 +178,35 @@ pre{font:12px/1.5 var(--mono);background:var(--paper);padding:10px;border-radius
       <h2>Steps</h2>
       <ol class="steps">
         <li id="step-source" class="active"><span class="n">1</span><div><b>Choose a source</b><small>Live camera, or a video filmed on a phone.</small></div></li>
-        <li id="step-calibrate"><span class="n">2</span><div><b>Calibrate</b><small>Hold a bank card flat beside the hand, the same distance from the camera. Click Calibrate, then click both ends of the card's long edge.</small></div></li>
-        <li id="step-record"><span class="n">3</span><div><b>Record about 10 seconds</b><small>Palm facing the camera. Hand relaxed, then open as wide as it goes, then close or try to grip.</small></div></li>
+        <li id="step-calibrate"><span class="n">2</span><div><b>Measure one length</b><small><span id="knownWhere">Hand flat. From the crease where the wrist meets the palm to the tip of the middle finger.</span> Use a ruler or tape. Every other size is scaled from this one.</small>
+          <div class="known"><label for="knownLen" id="knownLabel">Hand length</label>
+            <input id="knownLen" type="text" inputmode="decimal" placeholder="e.g. 18.5">
+            <select id="knownUnit" aria-label="Unit"><option value="cm">cm</option><option value="in">in</option></select></div>
+          <small class="skip">Optional. Leave it blank and sizes are estimated from an average body.</small>
+        </div></li>
+        <li id="step-record"><span class="n">3</span><div><b>Record about 10 seconds</b><small id="filmText">Palm facing the camera. Hand relaxed, then open as wide as it goes, then close or try to grip.</small></div></li>
       </ol>
     </section>
 
     <section>
       <h2>Live</h2>
-      <dl>
-        <dt>Hand</dt><dd id="liveHand">–</dd>
-        <dt>Thumb-to-index opening</dt><dd id="liveOpen">–</dd>
-        <dt>Knuckle span</dt><dd id="liveSpan">–</dd>
-        <dt>Index curl</dt><dd id="liveCurl">–</dd>
-        <dt>Scale</dt><dd id="liveScale">Estimated</dd>
-      </dl>
+      <dl id="liveRows"></dl>
+    </section>
+
+    <section id="tapeSection" hidden>
+      <h2>Tape measurements</h2>
+      <p class="tape-intro">A camera can't see around a limb. Measure these with a soft tape measure; leave any you can't do blank.</p>
+      <label class="tape-unit">Units <select id="tapeUnit"><option value="cm">cm</option><option value="in">inches</option></select></label>
+      <label id="describeWrap" class="tape-field" hidden><b>What is this for?</b><small>The body part and what the device should help with.</small>
+        <textarea id="describe" rows="2" placeholder="e.g. neck: support the head when tired"></textarea></label>
+      <div id="tapeFields" class="tape-fields"></div>
+      <button id="tapeOnly" class="primary" type="button" hidden>Save measurements</button>
     </section>
 
     <section id="results" hidden>
       <h2>Result</h2>
       <div style="display:grid;gap:16px">
-        <div class="rec-card">
+        <div class="rec-card" id="recCard">
           <span class="draft">Draft sizing rule. Not clinical guidance yet.</span>
           <h3 id="recLabel"></h3>
           <div class="param" id="recParam"></div>
@@ -187,6 +220,10 @@ pre{font:12px/1.5 var(--mono);background:var(--paper);padding:10px;border-radius
         <div>
           <h2>Range of motion</h2>
           <table><tbody id="motionRows"></tbody></table>
+        </div>
+        <div id="sendWrap" hidden>
+          <button id="send" class="primary" type="button">Send to Fitted</button>
+          <span id="sendMsg"></span>
         </div>
         <button id="download" type="button">Download profile (JSON)</button>
         <details><summary>View profile</summary><pre id="profileJson"></pre></details>
