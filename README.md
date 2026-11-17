@@ -3,6 +3,10 @@
 Assistive devices fitted to one person's body. This repo starts with the first
 step: measuring a hand from video.
 
+> Most people want [fitted-agents](https://github.com/applicationsshobhit-commits/fitted-agents),
+> which uses this repo for capture and runs the whole design pipeline. Start there.
+> Early prototype, not a medical device.
+
 ## Hand capture
 
     npm install
@@ -92,3 +96,7 @@ with its own names. Nothing downstream changes.
 - One hand at a time, and you pick left or right yourself.
 - Wrist angle isn't measured. It needs a body tracker, which matters for the
   palm bulb's neck angle.
+
+## Licence
+
+MIT, see `LICENSE`.
